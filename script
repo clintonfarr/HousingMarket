@@ -1,0 +1,85 @@
+-- DFW Housing Market Project
+
+create table if not exists texashousing (
+	zip_code varchar(10),
+	"month"	date,
+	median_sale_price numeric,
+	number_homes_sold numeric,
+	number_new_listings numeric,
+	inventory numeric,
+	average_days_on_market numeric,
+	average_sale_to_list numeric
+);
+
+create table if not exists texaszipcodes (
+	zip_code varchar(10),
+	city	varchar(50),
+	county varchar(50),
+	code_type varchar(50)
+);
+
+
+--EXPORT: Limited to NE Texas Counties. Includes additional calculated metrics. 
+	 
+select 
+	"month",
+	texashousing.zip_code, 
+	city, 
+	county, 
+	median_sale_price,
+	
+	--Percent change of median_sale_price by month partioned on zip_code
+	Round(((median_sale_price - (lag(median_sale_price) over (partition by texashousing.zip_code order by "month" ASC)))
+			/(lag(median_sale_price) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
+		as "median_sale_price_%change",
+		
+	number_homes_sold, 
+	
+	--Percent change of number_homes_sold by month partioned on zip_code
+	round(((number_homes_sold - (lag(number_homes_sold) over (partition by texashousing.zip_code order by "month" ASC)))
+		   /(lag(number_homes_sold) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
+		as "number_homes_sold_%change",
+	
+	number_new_listings, 
+	
+	--Percent change of number_new_listings by month partioned on zip_code
+	round(((number_new_listings - (lag(number_new_listings) over (partition by texashousing.zip_code order by "month" ASC)))
+		   /(lag(number_new_listings) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
+		as "number_new_listings_%change",
+	
+	inventory, 
+	
+	--Percent change of inventory by month partioned on zip_code
+	round(((inventory - (lag(inventory) over (partition by texashousing.zip_code order by "month" ASC)))
+		   /(lag(inventory) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
+		as "inventory_%change",
+	
+	average_days_on_market,
+	
+	--Percent change of average_days_on_market by month partioned on zip_code
+	round(((average_days_on_market - (lag(average_days_on_market) over (partition by texashousing.zip_code order by "month" ASC)))
+		   /(lag(average_days_on_market) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
+		as "average_days_on_market_%change"
+		
+from texashousing 
+
+left join texaszipcodes
+on texashousing.zip_code = texaszipcodes.zip_code
+
+where county in ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
+
+order by texashousing.zip_code, "month";
+
+
+
+
+--Finding average house price per year to find a good middle color for heat map
+select TO_CHAR("month", 'yyyy'), avg(median_sale_price) from texashousing
+
+left join texaszipcodes
+on texashousing.zip_code = texaszipcodes.zip_code
+
+where county in ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
+group by TO_CHAR("month", 'yyyy');
+
+
