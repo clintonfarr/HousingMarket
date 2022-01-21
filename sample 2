@@ -1,0 +1,21 @@
+DROP VIEW IF EXISTS average_home_price_year;
+CREATE VIEW average_home_price_year AS
+SELECT
+	TO_CHAR("month", 'yyyy') AS "year",
+	texashousing.zip_code,
+	city,
+	county,
+	ROUND(AVG(median_sale_price),2) AS average_home_price_year
+
+FROM texashousing
+
+LEFT JOIN texaszipcodes
+ON texashousing.zip_code = texaszipcodes.zip_code
+
+WHERE county IN ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
+
+GROUP BY TO_CHAR("month", 'yyyy'), texashousing.zip_code, city, county
+
+ORDER BY county, city, texashousing.zip_code, TO_CHAR("month", 'yyyy');
+
+SELECT * FROM average_home_price_year;

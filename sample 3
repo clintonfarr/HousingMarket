@@ -1,0 +1,14 @@
+SELECT
+	"year",
+	zip_code,
+	city,
+	county,
+	average_home_price_year,
+	
+	ROUND(((average_home_price_year - (LAG(average_home_price_year) OVER (PARTITION BY zip_code ORDER BY "year" ASC)))
+			/(LAG(average_home_price_year) OVER (PARTITION BY zip_code ORDER BY "year" ASC)))*100,4)
+		AS "%_change_sale_price_YoY"
+		
+FROM average_home_price_year
+
+ORDER BY county, city, zip_code, "year";

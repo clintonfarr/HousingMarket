@@ -1,0 +1,15 @@
+SELECT
+	"month",
+	texashousing.zip_code, 
+	city, 
+	county, 
+	median_sale_price
+		
+FROM texashousing 
+
+LEFT JOIN texaszipcodes
+	ON texashousing.zip_code = texaszipcodes.zip_code
+
+WHERE county IN ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
+
+ORDER BY texashousing.zip_code, "month";
