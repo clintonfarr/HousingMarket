@@ -1,6 +1,4 @@
--- DFW Housing Market Project
-
-create table if not exists texashousing (
+CREATE TABLE IF NOT EXISTS texashousing (
 	zip_code varchar(10),
 	"month"	date,
 	median_sale_price numeric,
@@ -11,75 +9,71 @@ create table if not exists texashousing (
 	average_sale_to_list numeric
 );
 
-create table if not exists texaszipcodes (
+CREATE TABLE IF NOT EXISTS texaszipcodes (
 	zip_code varchar(10),
 	city	varchar(50),
 	county varchar(50),
 	code_type varchar(50)
 );
 
-
---EXPORT: Limited to NE Texas Counties. Includes additional calculated metrics. 
+--Median sale price export
 	 
-select 
+SELECT
 	"month",
 	texashousing.zip_code, 
 	city, 
 	county, 
-	median_sale_price,
-	
-	--Percent change of median_sale_price by month partioned on zip_code
-	Round(((median_sale_price - (lag(median_sale_price) over (partition by texashousing.zip_code order by "month" ASC)))
-			/(lag(median_sale_price) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
-		as "median_sale_price_%change",
+	median_sale_price
 		
-	number_homes_sold, 
+FROM texashousing 
+
+LEFT JOIN texaszipcodes
+	ON texashousing.zip_code = texaszipcodes.zip_code
+
+WHERE county IN ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
+
+ORDER BY texashousing.zip_code, "month";
+
+--Create view of average price of home by zip code per year
+
+DROP VIEW IF EXISTS average_home_price_year;
+CREATE VIEW average_home_price_year AS
+SELECT
+	TO_CHAR("month", 'yyyy') AS "year",
+	texashousing.zip_code,
+	city,
+	county,
+	ROUND(AVG(median_sale_price),2) AS average_home_price_year
+
+FROM texashousing
+
+LEFT JOIN texaszipcodes
+ON texashousing.zip_code = texaszipcodes.zip_code
+
+WHERE county IN ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
+
+GROUP BY TO_CHAR("month", 'yyyy'), texashousing.zip_code, city, county
+
+ORDER BY county, city, texashousing.zip_code, TO_CHAR("month", 'yyyy');
+
+SELECT * FROM average_home_price_year;
+
+--Calculate %change of median sale price (YoY) from previous view
+
+SELECT
+	"year",
+	zip_code,
+	city,
+	county,
+	average_home_price_year,
 	
-	--Percent change of number_homes_sold by month partioned on zip_code
-	round(((number_homes_sold - (lag(number_homes_sold) over (partition by texashousing.zip_code order by "month" ASC)))
-		   /(lag(number_homes_sold) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
-		as "number_homes_sold_%change",
-	
-	number_new_listings, 
-	
-	--Percent change of number_new_listings by month partioned on zip_code
-	round(((number_new_listings - (lag(number_new_listings) over (partition by texashousing.zip_code order by "month" ASC)))
-		   /(lag(number_new_listings) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
-		as "number_new_listings_%change",
-	
-	inventory, 
-	
-	--Percent change of inventory by month partioned on zip_code
-	round(((inventory - (lag(inventory) over (partition by texashousing.zip_code order by "month" ASC)))
-		   /(lag(inventory) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
-		as "inventory_%change",
-	
-	average_days_on_market,
-	
-	--Percent change of average_days_on_market by month partioned on zip_code
-	round(((average_days_on_market - (lag(average_days_on_market) over (partition by texashousing.zip_code order by "month" ASC)))
-		   /(lag(average_days_on_market) over (partition by texashousing.zip_code order by "month" ASC)))*100,4)
-		as "average_days_on_market_%change"
+	--Percent Change Formula
+	ROUND(((average_home_price_year - (LAG(average_home_price_year) 
+		OVER (PARTITION BY zip_code ORDER BY "year" ASC)))
+	/(LAG(average_home_price_year) 
+		OVER (PARTITION BY zip_code ORDER BY "year" ASC)))*100,4)
+	AS "%_change_sale_price_YoY"
 		
-from texashousing 
+FROM average_home_price_year
 
-left join texaszipcodes
-on texashousing.zip_code = texaszipcodes.zip_code
-
-where county in ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
-
-order by texashousing.zip_code, "month";
-
-
-
-
---Finding average house price per year to find a good middle color for heat map
-select TO_CHAR("month", 'yyyy'), avg(median_sale_price) from texashousing
-
-left join texaszipcodes
-on texashousing.zip_code = texaszipcodes.zip_code
-
-where county in ('Hunt', 'Collin', 'Denton', 'Dallas', 'Rockwall', 'Tarrant', 'Kaufman')
-group by TO_CHAR("month", 'yyyy');
-
-
+ORDER BY county, city, zip_code, "year";
